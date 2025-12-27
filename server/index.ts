@@ -157,8 +157,7 @@ function serveLandingPage({
 
 function configureExpoAndLanding(app: express.Application) {
   const templatePath = path.resolve(
-    process.cwd(),
-    "server",
+    __dirname,
     "templates",
     "landing-page.html",
   );
