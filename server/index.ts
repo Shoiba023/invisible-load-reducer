@@ -3,6 +3,10 @@ import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const log = console.log;
@@ -156,11 +160,10 @@ function serveLandingPage({
 }
 
 function configureExpoAndLanding(app: express.Application) {
-  const templatePath = path.resolve(
-    __dirname,
-    "templates",
-    "landing-page.html",
-  );
+  let templatePath = path.resolve(__dirname, "templates", "landing-page.html");
+  if (!fs.existsSync(templatePath)) {
+    templatePath = path.resolve(process.cwd(), "server", "templates", "landing-page.html");
+  }
   const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
   const appName = getAppName();
 
