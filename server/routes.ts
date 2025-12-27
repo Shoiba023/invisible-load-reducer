@@ -1,7 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "node:http";
 import { storage } from "./storage";
-import { randomBytes, createHash } from "crypto";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -11,6 +12,9 @@ const openai = new OpenAI({
 
 const FREE_BRAIN_DUMP_LIMIT = 2;
 const FREE_RESET_LIMIT = 1;
+const BCRYPT_ROUNDS = 12;
+const JWT_SECRET = process.env.SESSION_SECRET || "dev-secret-change-in-production";
+const JWT_EXPIRY = "30d";
 
 interface AuthRequest extends Request {
   user?: {
@@ -22,12 +26,29 @@ interface AuthRequest extends Request {
   };
 }
 
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password).digest("hex");
+interface JWTPayload {
+  userId: string;
+  email: string;
 }
 
-function generateToken(): string {
-  return randomBytes(32).toString("hex");
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
+
+function generateToken(userId: string, email: string): string {
+  return jwt.sign({ userId, email } as JWTPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+}
+
+function verifyToken(token: string): JWTPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+  } catch {
+    return null;
+  }
 }
 
 async function authMiddleware(
@@ -41,12 +62,12 @@ async function authMiddleware(
     return res.status(401).json({ error: "No token provided" });
   }
 
-  const session = await storage.getSessionByToken(token);
-  if (!session || new Date(session.expiresAt) < new Date()) {
+  const payload = verifyToken(token);
+  if (!payload) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 
-  const user = await storage.getUser(session.userId);
+  const user = await storage.getUser(payload.userId);
   if (!user) {
     return res.status(401).json({ error: "User not found" });
   }
@@ -111,12 +132,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email already registered" });
       }
 
-      const hashedPassword = hashPassword(password);
+      const hashedPassword = await hashPassword(password);
       const user = await storage.createUser({ email, password: hashedPassword });
 
-      const token = generateToken();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      await storage.createSession(user.id, token, expiresAt);
+      const token = generateToken(user.id, user.email);
 
       res.json({
         token,
@@ -147,14 +166,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
-      const hashedPassword = hashPassword(password);
-      if (user.password !== hashedPassword) {
+      const isValidPassword = await verifyPassword(password, user.password);
+      if (!isValidPassword) {
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
-      const token = generateToken();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      await storage.createSession(user.id, token, expiresAt);
+      const token = generateToken(user.id, user.email);
 
       res.json({
         token,
@@ -172,17 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", authMiddleware, async (req: AuthRequest, res) => {
-    try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (token) {
-        await storage.deleteSession(token);
-      }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Logout error:", error);
-      res.status(500).json({ error: "Failed to logout" });
-    }
+  app.post("/api/auth/logout", authMiddleware, async (_req: AuthRequest, res) => {
+    res.json({ success: true });
   });
 
   app.get("/api/me", authMiddleware, async (req: AuthRequest, res) => {
