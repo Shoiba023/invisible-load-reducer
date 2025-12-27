@@ -14,7 +14,7 @@ import {
   type Reset,
   type Score,
   type Purchase,
-} from "@shared/schema";
+} from "./shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
