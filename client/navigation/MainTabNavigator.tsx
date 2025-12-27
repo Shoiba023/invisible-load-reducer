@@ -3,12 +3,19 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
-import HomeStackNavigator from "@/navigation/HomeStackNavigator";
-import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
+import BrainDumpScreen from "@/screens/BrainDumpScreen";
+import ScriptsScreen from "@/screens/ScriptsScreen";
+import ResetScreen from "@/screens/ResetScreen";
+import QuizScreen from "@/screens/QuizScreen";
+import ProfileScreen from "@/screens/ProfileScreen";
 import { useTheme } from "@/hooks/useTheme";
+import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type MainTabParamList = {
-  HomeTab: undefined;
+  BrainDumpTab: undefined;
+  ScriptsTab: undefined;
+  ResetTab: undefined;
+  QuizTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -16,12 +23,14 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
   const { theme, isDark } = useTheme();
+  const screenOptions = useScreenOptions();
 
   return (
     <Tab.Navigator
-      initialRouteName="HomeTab"
+      initialRouteName="BrainDumpTab"
       screenOptions={{
-        tabBarActiveTintColor: theme.tabIconSelected,
+        ...screenOptions,
+        tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.tabIconDefault,
         tabBarStyle: {
           position: "absolute",
@@ -40,24 +49,59 @@ export default function MainTabNavigator() {
               style={StyleSheet.absoluteFill}
             />
           ) : null,
-        headerShown: false,
+        headerShown: true,
       }}
     >
       <Tab.Screen
-        name="HomeTab"
-        component={HomeStackNavigator}
+        name="BrainDumpTab"
+        component={BrainDumpScreen}
         options={{
-          title: "Home",
+          title: "Brain Dump",
+          headerTitle: "Brain Dump",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={size} color={color} />
+            <Feather name="cloud" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ScriptsTab"
+        component={ScriptsScreen}
+        options={{
+          title: "Scripts",
+          headerTitle: "Guilt-Free Scripts",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="message-circle" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ResetTab"
+        component={ResetScreen}
+        options={{
+          title: "Reset",
+          headerTitle: "Mental Reset",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="heart" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="QuizTab"
+        component={QuizScreen}
+        options={{
+          title: "Quiz",
+          headerTitle: "Load Score",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="bar-chart-2" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
         name="ProfileTab"
-        component={ProfileStackNavigator}
+        component={ProfileScreen}
         options={{
           title: "Profile",
+          headerTitle: "Profile",
           tabBarIcon: ({ color, size }) => (
             <Feather name="user" size={size} color={color} />
           ),
